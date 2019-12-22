@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/caddyserver/caddy/v2"
@@ -37,9 +38,12 @@ func init() {
 type TmpDocker struct {
 	ServiceName    string         `json:"service_name,omitempty"`
 	FreezeDuration caddy.Duration `json:"freeze_timeout,omitempty"`
+	DockerHost     string         `json:"docker_host,omitempty"`
 
 	checkDuration  time.Duration
 	lastActiveTime int64
+	client         *client.Client
+	lock           *sync.Cond
 
 	logger *zap.Logger
 }
@@ -52,20 +56,6 @@ func (TmpDocker) CaddyModule() caddy.ModuleInfo {
 	}
 }
 
-// Validate validates c.
-func (tmpd *TmpDocker) Validate() error {
-	if tmpd.ServiceName == "" {
-		return fmt.Errorf("docker service_name is required")
-	}
-	if time.Duration(tmpd.FreezeDuration) < 5*time.Minute {
-		return fmt.Errorf("freeze_timeout must greater than 5m")
-	}
-	if _, err := tmpd.GetTmpService(); err != nil {
-		return err
-	}
-	return nil
-}
-
 // Provision sets up tmpd.
 func (tmpd *TmpDocker) Provision(ctx caddy.Context) error {
 	if tmpd.FreezeDuration == 0 {
@@ -76,7 +66,30 @@ func (tmpd *TmpDocker) Provision(ctx caddy.Context) error {
 	return nil
 }
 
-func (tmpd TmpDocker) updateLastActive(t int64) {
+// Validate validates tmpd.
+func (tmpd *TmpDocker) Validate() (err error) {
+	if tmpd.ServiceName == "" {
+		return fmt.Errorf("docker service_name is required")
+	}
+	if time.Duration(tmpd.FreezeDuration) < 5*time.Minute {
+		return fmt.Errorf("freeze_timeout must greater than 5m")
+	}
+	if tmpd.DockerHost == "" {
+		if tmpd.client, err = client.NewEnvClient(); err != nil {
+			return err
+		}
+	} else {
+		if tmpd.client, err = client.NewClient(tmpd.DockerHost, "", nil, nil); err != nil {
+			return err
+		}
+	}
+	if _, err := tmpd.GetTmpService(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (tmpd TmpDocker) updateLastActiveUnixTime(t int64) {
 	tmpd.lastActiveTime = t
 	if tmpd.lastActiveTime != 0 { // already have a timer
 		return
@@ -86,16 +99,27 @@ func (tmpd TmpDocker) updateLastActive(t int64) {
 		duration := time.Now().Unix() - tmpd.lastActiveTime
 		if duration > int64(tmpd.FreezeDuration) {
 			tmpd.lastActiveTime = 0
+			tmpd.lock = nil
 			go tmpd.StopDockerService()
 			break
 		}
 	}
 }
 func (tmpd TmpDocker) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	if err := tmpd.ScaleDockerService(); err != nil {
-		return err
+	if tmpd.lastActiveTime == 0 {
+		if tmpd.lock == nil {
+			m := sync.Mutex{}
+			tmpd.lock = sync.NewCond(&m)
+			m.Lock()
+			if err := tmpd.ScaleDockerService(); err != nil {
+				return err
+			}
+			m.Unlock()
+		} else {
+			tmpd.lock.Wait()
+		}
 	}
-	go tmpd.updateLastActive(time.Now().Unix())
+	go tmpd.updateLastActiveUnixTime(time.Now().Unix())
 	return next.ServeHTTP(w, r)
 }
 
@@ -107,10 +131,7 @@ type TmpService struct {
 }
 
 func (tmpd TmpDocker) GetTmpService() (*TmpService, error) {
-	client, err := client.NewEnvClient()
-	if err != nil {
-		return nil, err
-	}
+	client := tmpd.client
 	f := filters.NewArgs()
 	f.Add("name", tmpd.ServiceName)
 	slst, err := client.ServiceList(context.Background(), types.ServiceListOptions{Filters: f})
@@ -136,10 +157,7 @@ func (tmpd TmpDocker) GetTmpService() (*TmpService, error) {
 
 // ScaleDockerService use docker
 func (tmpd TmpDocker) ScaleDockerService() error {
-	client, err := client.NewEnvClient()
-	if err != nil {
-		return err
-	}
+	client := tmpd.client
 	ds, err := tmpd.GetTmpService()
 	if err != nil {
 	}
@@ -180,10 +198,7 @@ func (tmpd TmpDocker) ScaleDockerService() error {
 }
 
 func (tmpd TmpDocker) StopDockerService() error {
-	client, err := client.NewEnvClient()
-	if err != nil {
-		return err
-	}
+	client := tmpd.client
 	ds, err := tmpd.GetTmpService()
 	if err != nil {
 	}
