@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/caddyserver/caddy/v2"
@@ -36,12 +37,12 @@ func init() {
 
 // TmpDocker is a middleware which can rewrite HTTP requests.
 type TmpDocker struct {
-	ServiceName    string         `json:"service_name,omitempty"`
-	FreezeDuration caddy.Duration `json:"freeze_timeout,omitempty"`
-	DockerHost     string         `json:"docker_host,omitempty"`
+	ServiceName   string         `json:"service_name,omitempty"`
+	FreezeTimeout caddy.Duration `json:"freeze_timeout,omitempty"`
+	DockerHost    string         `json:"docker_host,omitempty"`
 
 	checkDuration  time.Duration
-	lastActiveTime int64
+	lastActiveTime *int64
 	client         *client.Client
 	lock           *sync.Cond
 
@@ -58,10 +59,14 @@ func (TmpDocker) CaddyModule() caddy.ModuleInfo {
 
 // Provision sets up tmpd.
 func (tmpd *TmpDocker) Provision(ctx caddy.Context) error {
-	if tmpd.FreezeDuration == 0 {
-		tmpd.FreezeDuration = caddy.Duration(20 * time.Minute)
+	if tmpd.FreezeTimeout == 0 {
+		tmpd.FreezeTimeout = caddy.Duration(20 * time.Minute)
 	}
-	tmpd.checkDuration = time.Duration(tmpd.FreezeDuration / 10)
+	if tmpd.lastActiveTime == nil {
+		zero := int64(0)
+		tmpd.lastActiveTime = &zero
+	}
+	tmpd.checkDuration = time.Duration(tmpd.FreezeTimeout / 10)
 	tmpd.logger = ctx.Logger(tmpd)
 	return nil
 }
@@ -71,7 +76,7 @@ func (tmpd *TmpDocker) Validate() (err error) {
 	if tmpd.ServiceName == "" {
 		return fmt.Errorf("docker service_name is required")
 	}
-	if time.Duration(tmpd.FreezeDuration) < 5*time.Minute {
+	if time.Duration(tmpd.FreezeTimeout) < 5*time.Minute {
 		return fmt.Errorf("freeze_timeout must greater than 5m")
 	}
 	if tmpd.DockerHost == "" {
@@ -90,15 +95,19 @@ func (tmpd *TmpDocker) Validate() (err error) {
 }
 
 func (tmpd TmpDocker) updateLastActiveUnixTime(t int64) {
-	tmpd.lastActiveTime = t
-	if tmpd.lastActiveTime != 0 { // already have a timer
+	if atomic.LoadInt64(tmpd.lastActiveTime) != 0 { // already have a timer
 		return
 	}
+	atomic.StoreInt64(tmpd.lastActiveTime, t)
 	for {
 		time.Sleep(tmpd.checkDuration)
-		duration := time.Now().Unix() - tmpd.lastActiveTime
-		if duration > int64(tmpd.FreezeDuration) {
-			tmpd.lastActiveTime = 0
+		duration := time.Now().UnixNano() - atomic.LoadInt64(tmpd.lastActiveTime)
+		tmpd.logger.Debug("check duration",
+			zap.Int64("duration", duration/int64(time.Second)),
+			zap.Int64("freeze", int64(tmpd.FreezeTimeout)/int64(time.Second)),
+		)
+		if duration > int64(tmpd.FreezeTimeout) {
+			atomic.StoreInt64(tmpd.lastActiveTime, 0)
 			tmpd.lock = nil
 			go tmpd.StopDockerService()
 			break
@@ -106,7 +115,10 @@ func (tmpd TmpDocker) updateLastActiveUnixTime(t int64) {
 	}
 }
 func (tmpd TmpDocker) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	if tmpd.lastActiveTime == 0 {
+	defer func(t int64) {
+		go tmpd.updateLastActiveUnixTime(t)
+	}(time.Now().UnixNano())
+	if atomic.LoadInt64(tmpd.lastActiveTime) == 0 {
 		if tmpd.lock == nil {
 			m := sync.Mutex{}
 			tmpd.lock = sync.NewCond(&m)
@@ -119,10 +131,10 @@ func (tmpd TmpDocker) ServeHTTP(w http.ResponseWriter, r *http.Request, next cad
 			tmpd.lock.Wait()
 		}
 	}
-	go tmpd.updateLastActiveUnixTime(time.Now().Unix())
 	return next.ServeHTTP(w, r)
 }
 
+// TmpService v
 type TmpService struct {
 	ID          string
 	Replicas    uint64
@@ -130,6 +142,7 @@ type TmpService struct {
 	Version     swarm.Version
 }
 
+// GetTmpService v
 func (tmpd TmpDocker) GetTmpService() (*TmpService, error) {
 	client := tmpd.client
 	f := filters.NewArgs()
@@ -155,13 +168,36 @@ func (tmpd TmpDocker) GetTmpService() (*TmpService, error) {
 	}, nil
 }
 
+// GetRunning node length
+func (tmpd TmpDocker) GetRunning(serviceID string) (count int, err error) {
+	client := tmpd.client
+	f := filters.NewArgs()
+	f.Add("service", serviceID)
+	tasks, err := client.TaskList(context.Background(), types.TaskListOptions{Filters: f})
+	if err != nil {
+		return
+	}
+	for _, task := range tasks {
+		if task.Status.State == swarm.TaskStateRunning {
+			count++
+			break // don't need range all
+		}
+	}
+	return
+}
+
 // ScaleDockerService use docker
 func (tmpd TmpDocker) ScaleDockerService() error {
 	client := tmpd.client
 	ds, err := tmpd.GetTmpService()
 	if err != nil {
+		return err
 	}
-	if ds.Replicas > 0 {
+	count, err := tmpd.GetRunning(ds.ID)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
 		return nil
 	}
 	if err != nil {
@@ -178,15 +214,18 @@ func (tmpd TmpDocker) ScaleDockerService() error {
 		ds.ServiceSpec,
 		types.ServiceUpdateOptions{},
 	)
+	tmpd.logger.Info("scale docker service",
+		zap.String("name", tmpd.ServiceName),
+	)
 	if err != nil {
 		return err
 	}
 	for i := 0; true; i++ {
-		ds, err := tmpd.GetTmpService()
+		count, err := tmpd.GetRunning(ds.ID)
 		if err != nil {
 			return err
 		}
-		if ds.Replicas > 0 {
+		if count > 0 {
 			break
 		}
 		if i > 5 {
@@ -197,6 +236,7 @@ func (tmpd TmpDocker) ScaleDockerService() error {
 	return nil
 }
 
+// StopDockerService use docker
 func (tmpd TmpDocker) StopDockerService() error {
 	client := tmpd.client
 	ds, err := tmpd.GetTmpService()
@@ -214,6 +254,9 @@ func (tmpd TmpDocker) StopDockerService() error {
 		ds.Version,
 		ds.ServiceSpec,
 		types.ServiceUpdateOptions{},
+	)
+	tmpd.logger.Info("stop docker service",
+		zap.String("name", tmpd.ServiceName),
 	)
 	if err != nil {
 		return err
