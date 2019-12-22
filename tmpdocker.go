@@ -76,7 +76,7 @@ func (tmpd *TmpDocker) Validate() (err error) {
 	if tmpd.ServiceName == "" {
 		return fmt.Errorf("docker service_name is required")
 	}
-	if time.Duration(tmpd.FreezeTimeout) < 5*time.Minute {
+	if time.Duration(tmpd.FreezeTimeout) < time.Minute {
 		return fmt.Errorf("freeze_timeout must greater than 5m")
 	}
 	if tmpd.DockerHost == "" {
@@ -197,7 +197,7 @@ func (tmpd TmpDocker) ScaleDockerService() error {
 	if err != nil {
 		return err
 	}
-	if count > 0 {
+	if ds.Replicas != 0 && uint64(count) == ds.Replicas {
 		return nil
 	}
 	if err != nil {
@@ -238,6 +238,9 @@ func (tmpd TmpDocker) ScaleDockerService() error {
 
 // StopDockerService use docker
 func (tmpd TmpDocker) StopDockerService() error {
+	tmpd.logger.Info("stop docker service",
+		zap.String("name", tmpd.ServiceName),
+	)
 	client := tmpd.client
 	ds, err := tmpd.GetTmpService()
 	if err != nil {
@@ -254,9 +257,6 @@ func (tmpd TmpDocker) StopDockerService() error {
 		ds.Version,
 		ds.ServiceSpec,
 		types.ServiceUpdateOptions{},
-	)
-	tmpd.logger.Info("stop docker service",
-		zap.String("name", tmpd.ServiceName),
 	)
 	if err != nil {
 		return err

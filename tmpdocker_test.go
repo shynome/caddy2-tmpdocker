@@ -10,7 +10,7 @@ import (
 var tmpd = func() *TmpDocker {
 	tmpd := &TmpDocker{
 		ServiceName:   "ttt",
-		FreezeTimeout: caddy.Duration(5 * time.Minute),
+		FreezeTimeout: caddy.Duration(time.Minute),
 	}
 	zero := int64(0)
 	tmpd.lastActiveTime = &zero
