@@ -95,10 +95,10 @@ func (tmpd *TmpDocker) Validate() (err error) {
 }
 
 func (tmpd TmpDocker) updateLastActiveUnixTime(t int64) {
+	atomic.StoreInt64(tmpd.lastActiveTime, t)
 	if atomic.LoadInt64(tmpd.lastActiveTime) != 0 { // already have a timer
 		return
 	}
-	atomic.StoreInt64(tmpd.lastActiveTime, t)
 	for {
 		time.Sleep(tmpd.checkDuration)
 		duration := time.Now().UnixNano() - atomic.LoadInt64(tmpd.lastActiveTime)
