@@ -11,5 +11,4 @@ require (
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
 	go.uber.org/zap v1.13.0
-	golang.org/x/text v0.3.2
 )
