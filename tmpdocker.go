@@ -95,8 +95,9 @@ func (tmpd *TmpDocker) Validate() (err error) {
 }
 
 func (tmpd TmpDocker) updateLastActiveUnixTime(t int64) {
+	lastActiveTime := atomic.LoadInt64(tmpd.lastActiveTime)
 	atomic.StoreInt64(tmpd.lastActiveTime, t)
-	if atomic.LoadInt64(tmpd.lastActiveTime) != 0 { // already have a timer
+	if lastActiveTime != 0 { // already have a timer
 		return
 	}
 	for {
