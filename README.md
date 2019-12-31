@@ -13,6 +13,10 @@ use docker service to auto scale backend service
   upstreams: [{ dial: "demo-service" }]
 ```
 
+# Todo
+
+- if return status code == 502 check docker service is healthy, if docker service scale is 0 clear hold timer
+
 # Build
 
 ```sh
