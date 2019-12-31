@@ -12,3 +12,12 @@ use docker service to auto scale backend service
   # set the server docker service backend
   upstreams: [{ dial: "demo-service" }]
 ```
+
+# Build
+
+```sh
+cd cmd/caddy
+go build
+./caddy list-modules | grep docker
+# you will see `http.handlers.tmpdocker` plugin
+```
