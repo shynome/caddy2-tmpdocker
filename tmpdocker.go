@@ -46,6 +46,9 @@ type TmpDocker struct {
 	client         *client.Client
 	lock           *sync.Cond
 
+	timer     *time.Ticker
+	timerStop chan bool
+
 	logger *zap.Logger
 }
 
@@ -100,18 +103,25 @@ func (tmpd TmpDocker) updateLastActiveUnixTime(t int64) {
 	if lastActiveTime != 0 { // already have a timer
 		return
 	}
+	tmpd.timer = time.NewTicker(tmpd.checkDuration)
+	tmpd.timerStop = make(chan bool)
 	for {
-		time.Sleep(tmpd.checkDuration)
-		duration := time.Now().UnixNano() - atomic.LoadInt64(tmpd.lastActiveTime)
-		tmpd.logger.Debug("check duration",
-			zap.Int64("duration", duration/int64(time.Second)),
-			zap.Int64("freeze", int64(tmpd.FreezeTimeout)/int64(time.Second)),
-		)
-		if duration > int64(tmpd.FreezeTimeout) {
+		select {
+		case <-tmpd.timerStop:
 			atomic.StoreInt64(tmpd.lastActiveTime, 0)
 			tmpd.lock = nil
 			go tmpd.StopDockerService()
-			break
+			return
+		case <-tmpd.timer.C:
+			duration := time.Now().UnixNano() - atomic.LoadInt64(tmpd.lastActiveTime)
+			tmpd.logger.Debug("check duration",
+				zap.Int64("duration", duration/int64(time.Second)),
+				zap.Int64("freeze", int64(tmpd.FreezeTimeout)/int64(time.Second)),
+			)
+			if duration > int64(tmpd.FreezeTimeout) {
+				tmpd.timer.Stop()
+				go func() { tmpd.timerStop <- true }()
+			}
 		}
 	}
 }
