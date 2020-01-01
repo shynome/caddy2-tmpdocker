@@ -1,0 +1,17 @@
+{
+  "admin": { "disabled": true },
+  "logging": { "logs": { "default": { "level": "debug" } } },
+  "apps": { "http": { "servers": { "tmpdocker": {
+    "automatic_https": { "disable": true },
+    "listen": [ "127.0.0.1:8080" ],
+    "routes": [
+      {
+        "handle": [
+        { "handler": "tmpdocker", "service_name": "test", "freeze_timeout": "1m" },
+        { "handler": "reverse_proxy", "upstreams": [ { "dial": "test:80" } ]}
+        ],
+        "terminal": true
+      }
+    ]
+  } } } }
+}
