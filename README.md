@@ -23,8 +23,12 @@ use docker service to auto scale backend service
 # Build
 
 ```sh
+git clone https://github.com/shynome/caddy2-tmpdocker.git
+cd caddy2-tmpdocker
+# download vendor
+git submodule init && git submodule update
 cd cmd/caddy
-go build
+go build -mod=vendor -o caddy
 ./caddy list-modules | grep docker
 # you will see `http.handlers.tmpdocker` plugin
 ```
