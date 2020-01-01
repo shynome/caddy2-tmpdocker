@@ -97,19 +97,15 @@ func (tmpd *TmpDocker) Validate() (err error) {
 	return nil
 }
 
-func (tmpd TmpDocker) updateLastActiveUnixTime(t int64) {
-	lastActiveTime := atomic.LoadInt64(tmpd.lastActiveTime)
-	atomic.StoreInt64(tmpd.lastActiveTime, t)
-	if lastActiveTime != 0 { // already have a timer
-		return
-	}
-	tmpd.timer = time.NewTicker(tmpd.checkDuration)
-	tmpd.timerStop = make(chan bool)
+func (tmpd TmpDocker) newCheckTimer() {
 	for {
 		select {
 		case <-tmpd.timerStop:
 			atomic.StoreInt64(tmpd.lastActiveTime, 0)
 			tmpd.lock = nil
+			tmpd.timer.Stop()
+			tmpd.timer = nil
+			tmpd.timerStop = nil
 			go tmpd.StopDockerService()
 			return
 		case <-tmpd.timer.C:
@@ -124,6 +120,16 @@ func (tmpd TmpDocker) updateLastActiveUnixTime(t int64) {
 			}
 		}
 	}
+}
+func (tmpd TmpDocker) updateLastActiveUnixTime(t int64) {
+	lastActiveTime := atomic.LoadInt64(tmpd.lastActiveTime)
+	atomic.StoreInt64(tmpd.lastActiveTime, t)
+	if lastActiveTime != 0 { // already have a timer
+		return
+	}
+	tmpd.timer = time.NewTicker(tmpd.checkDuration)
+	tmpd.timerStop = make(chan bool)
+	go tmpd.newCheckTimer()
 }
 func (tmpd TmpDocker) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	defer func(t int64) {
