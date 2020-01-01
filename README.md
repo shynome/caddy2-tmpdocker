@@ -15,7 +15,10 @@ use docker service to auto scale backend service
 
 # Todo
 
-- if return status code == 502 check docker service is healthy, if docker service scale is 0 clear hold timer
+- <del>
+  we can't do this because proxy is not a middleware<br/>
+  if return status code == 502 check docker service is healthy, if docker service scale is 0 clear hold timer
+  </del>
 
 # Build
 
