@@ -80,7 +80,7 @@ func (tmpd *TmpDocker) Validate() (err error) {
 		return fmt.Errorf("docker service_name is required")
 	}
 	if time.Duration(tmpd.FreezeTimeout) < time.Minute {
-		return fmt.Errorf("freeze_timeout must greater than 5m")
+		return fmt.Errorf("freeze_timeout must greater than 1m")
 	}
 	if tmpd.DockerHost == "" {
 		if tmpd.client, err = client.NewEnvClient(); err != nil {
