@@ -40,6 +40,7 @@ type TmpDocker struct {
 	ServiceName   string         `json:"service_name,omitempty"`
 	FreezeTimeout caddy.Duration `json:"freeze_timeout,omitempty"`
 	DockerHost    string         `json:"docker_host,omitempty"`
+	WakeTime      int            `json:"wake_time,omitempty"`
 
 	checkDuration  time.Duration
 	lastActiveTime *int64
@@ -68,6 +69,9 @@ func (tmpd *TmpDocker) Provision(ctx caddy.Context) error {
 	if tmpd.lastActiveTime == nil {
 		zero := int64(0)
 		tmpd.lastActiveTime = &zero
+	}
+	if tmpd.WakeTime == 0 {
+		tmpd.WakeTime = 10
 	}
 	tmpd.checkDuration = time.Duration(tmpd.FreezeTimeout / 10)
 	tmpd.logger = ctx.Logger(tmpd)
@@ -246,8 +250,8 @@ func (tmpd TmpDocker) ScaleDockerService() error {
 		if count > 0 {
 			break
 		}
-		if i > 5 {
-			return fmt.Errorf("start docker service %v fail", tmpd.ServiceName)
+		if i > tmpd.WakeTime {
+			return fmt.Errorf("start docker service %v fail, because wake timeout", tmpd.ServiceName)
 		}
 		time.Sleep(time.Second)
 	}
