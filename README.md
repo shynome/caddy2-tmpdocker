@@ -2,15 +2,19 @@
 
 use docker service to auto scale backend service
 
-```yaml
-- handler: "tmpdocker"
-  # required
-  service_name: "demo-service"
-  # if no request after 20m will scale the service to 0 , if have request will scale to 1
-  freeze_timeout: "20m"
-- handler: "reverse_proxy"
-  # set the server docker service backend
-  upstreams: [{ dial: "demo-service" }]
+```conf
+# create docker service
+# docker service create -p 8081:80 --name test nginx:1.19.6-alpine@sha256:c2ce58e024275728b00a554ac25628af25c54782865b3487b11c21cafb7fabda
+http://127.0.0.1:8080 {
+    route {
+        tmpdocker {
+            service test
+            timeout 1m
+            #wake_timeout 1s
+        }
+        reverse_proxy 127.0.0.1:8081
+    }
+}
 ```
 
 # Build
