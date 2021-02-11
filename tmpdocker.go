@@ -274,6 +274,7 @@ func (tmpd TmpDocker) StopDockerService() error {
 	client := tmpd.client
 	ds, err := tmpd.GetTmpService()
 	if err != nil {
+		return err
 	}
 	if ds.Replicas == 0 {
 		return nil
