@@ -95,9 +95,9 @@ func (tmpd *TmpDocker) Validate() (err error) {
 			return err
 		}
 	}
-	if _, err := tmpd.GetTmpService(); err != nil {
-		return err
-	}
+	// if _, err := tmpd.GetTmpService(); err != nil {
+	// 	return err
+	// }
 	return nil
 }
 
