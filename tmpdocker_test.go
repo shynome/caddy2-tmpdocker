@@ -1,15 +1,16 @@
 package tmpdocker
 
 import (
-	"github.com/caddyserver/caddy/v2"
-	"go.uber.org/zap"
 	"testing"
 	"time"
+
+	"github.com/caddyserver/caddy/v2"
+	"go.uber.org/zap"
 )
 
 var tmpd = func() *TmpDocker {
 	tmpd := &TmpDocker{
-		ServiceName:   "ttt",
+		ServiceName:   "test",
 		FreezeTimeout: caddy.Duration(time.Minute),
 	}
 	zero := int64(0)
