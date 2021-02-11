@@ -1,3 +1,0 @@
-[submodule "vendor"]
-	path = vendor
-	url = https://github.com/shynome/caddy2-tmpdocker-vendor.git
