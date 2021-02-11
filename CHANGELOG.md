@@ -1,3 +1,9 @@
+## v1.0.1
+
+### FIX
+
+- fix: nil pointer problem in stop docker service
+
 ## v0.0.4
 
 ### ADD
