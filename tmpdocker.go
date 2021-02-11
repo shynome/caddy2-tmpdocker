@@ -196,7 +196,7 @@ func (tmpd TmpDocker) GetRunning(serviceID string) (count int, err error) {
 		return
 	}
 	for _, task := range tasks {
-		if task.Status.State == swarm.TaskStateRunning {
+		if task.DesiredState == swarm.TaskStateRunning && task.Status.State == swarm.TaskStateRunning {
 			count++
 			break // don't need range all
 		}
