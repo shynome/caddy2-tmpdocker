@@ -1,9 +1,14 @@
+{
+    debug
+}
+
 http://127.0.0.1:8080 {
-    tmpdocker {
-        name test
-        timeout 1m
-        docker_host tcp://127.0.0.1:2375
+    route {
+        tmpdocker {
+            service test
+            timeout 1m
+            #wake_timeout 1s
+        }
+        reverse_proxy 127.0.0.1:8081
     }
-    tmpdocker test
-    reverse_proxy test:80
 }

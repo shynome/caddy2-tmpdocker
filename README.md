@@ -32,3 +32,16 @@ go build -mod=vendor -o caddy
 ./caddy list-modules | grep docker
 # you will see `http.handlers.tmpdocker` plugin
 ```
+
+# Test
+
+```sh
+docker service create -p 8081:80 --name test nginx:1.19.6-alpine@sha256:c2ce58e024275728b00a554ac25628af25c54782865b3487b11c21cafb7fabda
+cd cmd/caddy
+go run . run -config Caddyfile --adapter caddyfile
+# another shell
+docker service ls
+curl http://127.0.0.1:8080
+docker service ls
+docker service rm test
+```
