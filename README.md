@@ -22,9 +22,9 @@ http://127.0.0.1:8080 {
 ```sh
 git clone https://github.com/shynome/caddy2-tmpdocker.git
 cd caddy2-tmpdocker
-# download vendor 1
+# download vendor way 1
 git clone https://github.com/shynome/caddy2-tmpdocker-vendor.git vendor
-# download vendor 2
+# or download vendor way 2
 go mod download
 cd cmd/caddy
 go build -mod=vendor -o caddy
