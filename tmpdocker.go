@@ -111,6 +111,7 @@ func (tmpd TmpDocker) newCheckTimer() {
 		case <-tmpd.timer.C:
 			duration := time.Now().UnixNano() - atomic.LoadInt64(tmpd.lastActiveTime)
 			tmpd.logger.Debug("check duration",
+				zap.String("docker service", tmpd.ServiceName),
 				zap.Int64("duration", duration/int64(time.Second)),
 				zap.Int64("freeze", int64(tmpd.FreezeTimeout)/int64(time.Second)),
 			)
