@@ -40,7 +40,7 @@ type TmpDocker struct {
 	ServiceName   string         `json:"service_name,omitempty"`
 	FreezeTimeout caddy.Duration `json:"freeze_timeout,omitempty"`
 	DockerHost    string         `json:"docker_host,omitempty"`
-	WakeTime      int            `json:"wake_time,omitempty"`
+	WakeTimeout   caddy.Duration `json:"wake_timeout,omitempty"`
 
 	checkDuration  time.Duration
 	lastActiveTime *int64
@@ -70,8 +70,8 @@ func (tmpd *TmpDocker) Provision(ctx caddy.Context) error {
 		zero := int64(0)
 		tmpd.lastActiveTime = &zero
 	}
-	if tmpd.WakeTime == 0 {
-		tmpd.WakeTime = 10
+	if tmpd.WakeTimeout == 0 {
+		tmpd.WakeTimeout = caddy.Duration(10 * time.Second)
 	}
 	tmpd.checkDuration = time.Duration(tmpd.FreezeTimeout / 10)
 	tmpd.logger = ctx.Logger(tmpd)
@@ -242,7 +242,7 @@ func (tmpd TmpDocker) ScaleDockerService() error {
 	if err != nil {
 		return err
 	}
-	for i := 0; true; i++ {
+	for timeoutPoint := time.Now().Add(time.Duration(tmpd.WakeTimeout)); ; {
 		count, err := tmpd.GetRunning(ds.ID)
 		if err != nil {
 			return err
@@ -250,7 +250,7 @@ func (tmpd TmpDocker) ScaleDockerService() error {
 		if count > 0 {
 			break
 		}
-		if i > tmpd.WakeTime {
+		if !time.Now().Before(timeoutPoint) {
 			return fmt.Errorf("start docker service %v fail, because wake timeout", tmpd.ServiceName)
 		}
 		time.Sleep(time.Second)
