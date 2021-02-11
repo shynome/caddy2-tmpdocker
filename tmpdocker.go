@@ -147,6 +147,9 @@ func (tmpd TmpDocker) ServeHTTP(w http.ResponseWriter, r *http.Request, next cad
 			defer m.Unlock()
 			atomic.StoreInt64(tmpd.lastActiveTime, 1)
 			if err := tmpd.ScaleDockerService(); err != nil {
+				// recovery
+				tmpd.lock = nil
+				atomic.StoreInt64(tmpd.lastActiveTime, 0)
 				return err
 			}
 			tmpd.updateLastActiveUnixTime(t)
