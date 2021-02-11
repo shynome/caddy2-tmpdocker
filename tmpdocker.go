@@ -129,7 +129,7 @@ func (tmpd TmpDocker) newCheckTimer() {
 func (tmpd TmpDocker) updateLastActiveUnixTime(t int64) {
 	lastActiveTime := atomic.LoadInt64(tmpd.lastActiveTime)
 	atomic.StoreInt64(tmpd.lastActiveTime, t)
-	if lastActiveTime != 0 { // already have a timer
+	if lastActiveTime != 0 && lastActiveTime != 1 { // already have a timer
 		return
 	}
 	tmpd.timer = time.NewTicker(tmpd.checkDuration)
@@ -137,22 +137,27 @@ func (tmpd TmpDocker) updateLastActiveUnixTime(t int64) {
 	go tmpd.newCheckTimer()
 }
 func (tmpd TmpDocker) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	defer func(t int64) {
-		go tmpd.updateLastActiveUnixTime(t)
-	}(time.Now().UnixNano())
-	if atomic.LoadInt64(tmpd.lastActiveTime) == 0 {
+	t := time.Now().UnixNano()
+	lat := atomic.LoadInt64(tmpd.lastActiveTime)
+	if lat == 0 {
 		if tmpd.lock == nil {
 			m := sync.Mutex{}
 			tmpd.lock = sync.NewCond(&m)
 			m.Lock()
+			defer m.Unlock()
+			atomic.StoreInt64(tmpd.lastActiveTime, 1)
 			if err := tmpd.ScaleDockerService(); err != nil {
 				return err
 			}
-			m.Unlock()
+			tmpd.updateLastActiveUnixTime(t)
 		} else {
 			tmpd.lock.Wait()
 		}
 	}
+	if lat == 1 {
+		tmpd.lock.Wait()
+	}
+	defer func() { go tmpd.updateLastActiveUnixTime(t) }()
 	return next.ServeHTTP(w, r)
 }
 
