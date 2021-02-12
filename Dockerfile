@@ -1,4 +1,4 @@
-FROM golang:1.13-alpine as Build
+FROM golang:1.14-alpine as Build
 COPY . /caddy2-tmpdocker
 WORKDIR /caddy2-tmpdocker/cmd/caddy
 RUN go build -mod=vendor -o /usr/local/bin/caddy2
