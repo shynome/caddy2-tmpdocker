@@ -1,5 +1,14 @@
 ## v1.0.1
 
+### Break Change
+
+for better code
+
+- field `freeze_timeout` -> `wait`(WaitingTimeBeforeStop)
+- field `wake_timeout` -> `scale_timeout`
+
+## v1.0.1
+
 ### FIX
 
 - fix: nil pointer problem in stop docker service

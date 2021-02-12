@@ -37,10 +37,10 @@ func init() {
 
 // TmpDocker is a middleware which can rewrite HTTP requests.
 type TmpDocker struct {
-	ServiceName   string         `json:"service_name,omitempty"`
-	FreezeTimeout caddy.Duration `json:"freeze_timeout,omitempty"`
-	DockerHost    string         `json:"docker_host,omitempty"`
-	WakeTimeout   caddy.Duration `json:"wake_timeout,omitempty"`
+	ServiceName           string         `json:"service_name,omitempty"`
+	WaitingTimeBeforeStop caddy.Duration `json:"wait,omitempty"`
+	ScaleTimeout          caddy.Duration `json:"scale_timeout,omitempty"`
+	DockerHost            string         `json:"docker_host,omitempty"`
 
 	checkDuration  time.Duration
 	lastActiveTime *int64
@@ -63,17 +63,17 @@ func (TmpDocker) CaddyModule() caddy.ModuleInfo {
 
 // Provision sets up tmpd.
 func (tmpd *TmpDocker) Provision(ctx caddy.Context) error {
-	if tmpd.FreezeTimeout == 0 {
-		tmpd.FreezeTimeout = caddy.Duration(20 * time.Minute)
+	if tmpd.WaitingTimeBeforeStop == 0 {
+		tmpd.WaitingTimeBeforeStop = caddy.Duration(20 * time.Minute)
 	}
 	if tmpd.lastActiveTime == nil {
 		zero := int64(0)
 		tmpd.lastActiveTime = &zero
 	}
-	if tmpd.WakeTimeout == 0 {
-		tmpd.WakeTimeout = caddy.Duration(10 * time.Second)
+	if tmpd.ScaleTimeout == 0 {
+		tmpd.ScaleTimeout = caddy.Duration(10 * time.Second)
 	}
-	tmpd.checkDuration = time.Duration(tmpd.FreezeTimeout / 10)
+	tmpd.checkDuration = time.Duration(tmpd.WaitingTimeBeforeStop / 10)
 	tmpd.logger = ctx.Logger(tmpd)
 	return nil
 }
@@ -83,7 +83,7 @@ func (tmpd *TmpDocker) Validate() (err error) {
 	if tmpd.ServiceName == "" {
 		return fmt.Errorf("docker service_name is required")
 	}
-	if time.Duration(tmpd.FreezeTimeout) < time.Minute {
+	if time.Duration(tmpd.WaitingTimeBeforeStop) < time.Minute {
 		return fmt.Errorf("freeze_timeout must greater than 1m")
 	}
 	if tmpd.DockerHost == "" {
@@ -117,9 +117,9 @@ func (tmpd TmpDocker) newCheckTimer() {
 			tmpd.logger.Debug("check duration",
 				zap.String("docker service", tmpd.ServiceName),
 				zap.Int64("duration", duration/int64(time.Second)),
-				zap.Int64("freeze", int64(tmpd.FreezeTimeout)/int64(time.Second)),
+				zap.Int64("freeze", int64(tmpd.WaitingTimeBeforeStop)/int64(time.Second)),
 			)
-			if duration > int64(tmpd.FreezeTimeout) {
+			if duration > int64(tmpd.WaitingTimeBeforeStop) {
 				tmpd.timer.Stop()
 				go func() { tmpd.timerStop <- true }()
 			}
@@ -250,7 +250,7 @@ func (tmpd TmpDocker) ScaleDockerService() error {
 	if err != nil {
 		return err
 	}
-	for timeoutPoint := time.Now().Add(time.Duration(tmpd.WakeTimeout)); ; {
+	for timeoutPoint := time.Now().Add(time.Duration(tmpd.ScaleTimeout)); ; {
 		count, err := tmpd.GetRunning(ds.ID)
 		if err != nil {
 			return err

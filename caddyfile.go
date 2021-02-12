@@ -38,7 +38,7 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 				if !h.Args(&tmpd.ServiceName) {
 					return nil, h.ArgErr()
 				}
-			case "timeout":
+			case "wait":
 				{
 					var s string
 					if !h.Args(&s) {
@@ -48,23 +48,23 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 					if err != nil {
 						return nil, h.ArgErr()
 					}
-					tmpd.FreezeTimeout = caddy.Duration(timeout)
+					tmpd.WaitingTimeBeforeStop = caddy.Duration(timeout)
+				}
+			case "scale_timeout":
+				{
+					var s string
+					if !h.Args(&s) {
+						return nil, h.ArgErr()
+					}
+					timeout, err := caddy.ParseDuration(s)
+					if err != nil {
+						return nil, h.ArgErr()
+					}
+					tmpd.ScaleTimeout = caddy.Duration(timeout)
 				}
 			case "docker_host":
 				if !h.Args(&tmpd.DockerHost) {
 					return nil, h.ArgErr()
-				}
-			case "wake_timeout":
-				{
-					var s string
-					if !h.Args(&s) {
-						return nil, h.ArgErr()
-					}
-					timeout, err := caddy.ParseDuration(s)
-					if err != nil {
-						return nil, h.ArgErr()
-					}
-					tmpd.WakeTimeout = caddy.Duration(timeout)
 				}
 			default:
 				return nil, h.Errf("unknown subdirective '%s'", h.Val())
