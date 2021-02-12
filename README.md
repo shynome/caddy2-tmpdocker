@@ -10,8 +10,10 @@ http://127.0.0.1:8080 {
         tmpdocker {
             service test
             wait 1m
+            #wait 20m
             #scale_timeout 10s
         }
+        #tmpdocker test
         reverse_proxy 127.0.0.1:8081
     }
 }
