@@ -7,7 +7,7 @@
     "routes": [
       {
         "handle": [
-        { "handler": "tmpdocker", "service_name": "test", "wait": "1m" },
+        { "handler": "tmpdocker", "service_name": "test", "keep_alive": "1m" },
         { "handler": "reverse_proxy", "upstreams": [ { "dial": "127.0.0.1:8081" } ]}
         ],
         "terminal": true

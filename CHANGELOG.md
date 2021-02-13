@@ -1,3 +1,11 @@
+## v1.2.0
+
+### Break Change
+
+for better code
+
+- field `wait` -> `keep_alive`
+
 ## v1.1.0
 
 ### Break Change

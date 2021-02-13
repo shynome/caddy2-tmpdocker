@@ -37,10 +37,10 @@ func init() {
 
 // TmpDocker is a middleware which can rewrite HTTP requests.
 type TmpDocker struct {
-	ServiceName           string         `json:"service_name,omitempty"`
-	WaitingTimeBeforeStop caddy.Duration `json:"wait,omitempty"`
-	ScaleTimeout          caddy.Duration `json:"scale_timeout,omitempty"`
-	DockerHost            string         `json:"docker_host,omitempty"`
+	ServiceName  string         `json:"service_name,omitempty"`
+	KeepAlive    caddy.Duration `json:"keep_alive,omitempty"`
+	ScaleTimeout caddy.Duration `json:"scale_timeout,omitempty"`
+	DockerHost   string         `json:"docker_host,omitempty"`
 
 	checkDuration  time.Duration
 	lastActiveTime *int64
@@ -63,8 +63,8 @@ func (TmpDocker) CaddyModule() caddy.ModuleInfo {
 
 // Provision sets up tmpd.
 func (tmpd *TmpDocker) Provision(ctx caddy.Context) error {
-	if tmpd.WaitingTimeBeforeStop == 0 {
-		tmpd.WaitingTimeBeforeStop = caddy.Duration(20 * time.Minute)
+	if tmpd.KeepAlive == 0 {
+		tmpd.KeepAlive = caddy.Duration(20 * time.Minute)
 	}
 	if tmpd.lastActiveTime == nil {
 		zero := int64(0)
@@ -73,7 +73,7 @@ func (tmpd *TmpDocker) Provision(ctx caddy.Context) error {
 	if tmpd.ScaleTimeout == 0 {
 		tmpd.ScaleTimeout = caddy.Duration(10 * time.Second)
 	}
-	tmpd.checkDuration = time.Duration(tmpd.WaitingTimeBeforeStop / 10)
+	tmpd.checkDuration = time.Duration(tmpd.KeepAlive / 10)
 	tmpd.logger = ctx.Logger(tmpd)
 	return nil
 }
@@ -83,7 +83,7 @@ func (tmpd *TmpDocker) Validate() (err error) {
 	if tmpd.ServiceName == "" {
 		return fmt.Errorf("docker service_name is required")
 	}
-	if time.Duration(tmpd.WaitingTimeBeforeStop) < time.Minute {
+	if time.Duration(tmpd.KeepAlive) < time.Minute {
 		return fmt.Errorf("freeze_timeout must greater than 1m")
 	}
 	if tmpd.DockerHost == "" {
@@ -117,9 +117,9 @@ func (tmpd TmpDocker) newCheckTimer() {
 			tmpd.logger.Debug("check duration",
 				zap.String("docker service", tmpd.ServiceName),
 				zap.Int64("duration", duration/int64(time.Second)),
-				zap.Int64("freeze", int64(tmpd.WaitingTimeBeforeStop)/int64(time.Second)),
+				zap.Int64("freeze", int64(tmpd.KeepAlive)/int64(time.Second)),
 			)
-			if duration > int64(tmpd.WaitingTimeBeforeStop) {
+			if duration > int64(tmpd.KeepAlive) {
 				tmpd.timer.Stop()
 				go func() { tmpd.timerStop <- true }()
 			}

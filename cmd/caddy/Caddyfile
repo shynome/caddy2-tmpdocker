@@ -6,7 +6,7 @@ http://127.0.0.1:8080 {
     route {
         tmpdocker {
             service test
-            wait 1m
+            keep_alive 1m
             #scale_timeout 10s
         }
         reverse_proxy 127.0.0.1:8081

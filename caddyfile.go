@@ -13,10 +13,10 @@ func init() {
 // parseCaddyfile parses the tmpd directive.
 //
 //    tmpdocker [service_name] {
-//        service      <service_name>
-//	      timeout      <freeze_timeout>
-//	      docker_host  <DockerHost>
-//        wake_timeout <wake_timeout>
+//        service       <service_name>
+//	      keep_alive    <keep_alive>
+//	      docker_host   <DockerHost>
+//        scale_timeout <scale_timeout>
 //    }
 //
 func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
@@ -38,7 +38,7 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 				if !h.Args(&tmpd.ServiceName) {
 					return nil, h.ArgErr()
 				}
-			case "wait":
+			case "keep_alive":
 				{
 					var s string
 					if !h.Args(&s) {
@@ -48,7 +48,7 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 					if err != nil {
 						return nil, h.ArgErr()
 					}
-					tmpd.WaitingTimeBeforeStop = caddy.Duration(timeout)
+					tmpd.KeepAlive = caddy.Duration(timeout)
 				}
 			case "scale_timeout":
 				{

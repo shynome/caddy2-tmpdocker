@@ -9,8 +9,8 @@ http://127.0.0.1:8080 {
     route {
         tmpdocker {
             service test
-            wait 1m
-            #wait 20m
+            keep_alive 1m
+            #keep_alive 20m
             #scale_timeout 10s
         }
         #tmpdocker test

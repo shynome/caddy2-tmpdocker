@@ -11,7 +11,7 @@ import (
 var tmpd = func() *TmpDocker {
 	tmpd := &TmpDocker{
 		ServiceName:   "test",
-		WaitingTimeBeforeStop: caddy.Duration(time.Minute),
+		KeepAlive: caddy.Duration(time.Minute),
 	}
 	zero := int64(0)
 	tmpd.lastActiveTime = &zero
