@@ -64,7 +64,7 @@ func (TmpDocker) CaddyModule() caddy.ModuleInfo {
 // Provision sets up tmpd.
 func (tmpd *TmpDocker) Provision(ctx caddy.Context) error {
 	if tmpd.KeepAlive == 0 {
-		tmpd.KeepAlive = caddy.Duration(20 * time.Minute)
+		tmpd.KeepAlive = caddy.Duration(5 * time.Minute)
 	}
 	if tmpd.lastActiveTime == nil {
 		zero := int64(0)

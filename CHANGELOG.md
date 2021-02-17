@@ -1,3 +1,9 @@
+## v1.3.0
+
+### Change
+
+-  change KeepAlive duration default value from 20m to 5m
+
 ## v1.2.1
 
 ### Fix
