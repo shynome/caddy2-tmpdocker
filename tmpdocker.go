@@ -101,12 +101,11 @@ func (tmpd *TmpDocker) Validate() (err error) {
 	return nil
 }
 
-func (tmpd TmpDocker) newCheckTimer() {
+func (tmpd *TmpDocker) newCheckTimer() {
 	for {
 		select {
 		case <-tmpd.timerStop:
-			atomic.StoreInt64(tmpd.lastActiveTime, 0)
-			tmpd.lock = nil
+			tmpd.resetStatus()
 			tmpd.timer.Stop()
 			tmpd.timer = nil
 			tmpd.timerStop = nil
@@ -126,41 +125,50 @@ func (tmpd TmpDocker) newCheckTimer() {
 		}
 	}
 }
-func (tmpd TmpDocker) updateLastActiveUnixTime(t int64) {
+
+func (tmpd *TmpDocker) resetStatus() {
+	tmpd.lock = nil
+	atomic.StoreInt64(tmpd.lastActiveTime, 0)
+}
+
+func (tmpd *TmpDocker) updateLastActiveUnixTime(t int64) {
 	lastActiveTime := atomic.LoadInt64(tmpd.lastActiveTime)
 	atomic.StoreInt64(tmpd.lastActiveTime, t)
-	if lastActiveTime != 0 && lastActiveTime != 1 { // already have a timer
+	if lastActiveTime != 0 { // already have a timer
 		return
 	}
 	tmpd.timer = time.NewTicker(tmpd.checkDuration)
 	tmpd.timerStop = make(chan bool)
 	go tmpd.newCheckTimer()
 }
-func (tmpd TmpDocker) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+func (tmpd *TmpDocker) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	t := time.Now().UnixNano()
 	lat := atomic.LoadInt64(tmpd.lastActiveTime)
-	if lat == 0 {
-		if tmpd.lock == nil {
-			m := sync.Mutex{}
-			tmpd.lock = sync.NewCond(&m)
-			m.Lock()
-			defer m.Unlock()
-			atomic.StoreInt64(tmpd.lastActiveTime, 1)
-			if err := tmpd.ScaleDockerService(); err != nil {
-				// recovery
-				tmpd.lock = nil
-				atomic.StoreInt64(tmpd.lastActiveTime, 0)
-				return err
+
+	if tmpd.lock != nil {
+		if lat == 0 {
+			lock := tmpd.lock
+			lock.L.Lock()
+			defer lock.L.Unlock()
+			for atomic.LoadInt64(tmpd.lastActiveTime) == 0 {
+				lock.Wait()
 			}
-			tmpd.updateLastActiveUnixTime(t)
-		} else {
-			tmpd.lock.Wait()
 		}
+		defer func() { go tmpd.updateLastActiveUnixTime(t) }()
+		return next.ServeHTTP(w, r)
 	}
-	if lat == 1 {
-		tmpd.lock.Wait()
+
+	lock := sync.NewCond(&sync.Mutex{})
+	lock.L.Lock()
+	defer lock.L.Unlock()
+	tmpd.lock = lock
+	defer lock.Broadcast()
+	if err := tmpd.ScaleDockerService(); err != nil {
+		// recovery
+		tmpd.resetStatus()
+		return err
 	}
-	defer func() { go tmpd.updateLastActiveUnixTime(t) }()
+	tmpd.updateLastActiveUnixTime(t)
 	return next.ServeHTTP(w, r)
 }
 
