@@ -1,3 +1,10 @@
+## v1.2.1
+
+### Fix
+
+- fix: set value to new copy struct not the pointer struct
+- 修复: 未使用引用赋值, 导致值没有设置成功
+
 ## v1.2.0
 
 ### Break Change
