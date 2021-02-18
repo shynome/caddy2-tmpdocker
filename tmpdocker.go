@@ -159,8 +159,6 @@ func (tmpd *TmpDocker) ServeHTTP(w http.ResponseWriter, r *http.Request, next ca
 	}
 
 	lock := sync.NewCond(&sync.Mutex{})
-	lock.L.Lock()
-	defer lock.L.Unlock()
 	tmpd.lock = lock
 	defer lock.Broadcast()
 	if err := tmpd.ScaleDockerService(); err != nil {
