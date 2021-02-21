@@ -10,7 +10,7 @@ http://127.0.0.1:8080 {
         tmpdocker {
             service test
             keep_alive 1m
-            #keep_alive 20m
+            #keep_alive 5m
             #scale_timeout 10s
         }
         #tmpdocker test
