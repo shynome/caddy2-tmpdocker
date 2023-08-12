@@ -33,7 +33,7 @@ go build -o caddy ./cmd/caddy
 
 ```sh
 docker service create --name tmpdocker_test -p 8081:80 --replicas 0 nginx:1.19.6-alpine@sha256:c2ce58e024275728b00a554ac25628af25c54782865b3487b11c21cafb7fabda
-go run ./cmd/caddy run -config ./cmd/caddy/Caddyfile --adapter caddyfile
+go run ./cmd/caddy run --config ./cmd/caddy/Caddyfile --adapter caddyfile
 # another shell
 docker service ls
 curl http://127.0.0.1:8080

@@ -5,7 +5,9 @@ go 1.21
 require (
 	github.com/caddyserver/caddy/v2 v2.7.3
 	github.com/docker/docker v1.13.1
+	github.com/lainio/err2 v0.9.29
 	go.uber.org/zap v1.25.0
+	golang.org/x/sync v0.3.0
 )
 
 require (
@@ -68,7 +70,6 @@ require (
 	github.com/jackc/pgx/v4 v4.18.0 // indirect
 	github.com/klauspost/compress v1.16.7 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
-	github.com/lainio/err2 v0.9.29 // indirect
 	github.com/libdns/libdns v0.2.1 // indirect
 	github.com/manifoldco/promptui v0.9.0 // indirect
 	github.com/mastercactapus/proxyprotocol v0.0.4 // indirect
@@ -136,7 +137,6 @@ require (
 	golang.org/x/exp v0.0.0-20230810033253-352e893a4cad // indirect
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/net v0.14.0 // indirect
-	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/sys v0.11.0 // indirect
 	golang.org/x/term v0.11.0 // indirect
 	golang.org/x/text v0.12.0 // indirect
