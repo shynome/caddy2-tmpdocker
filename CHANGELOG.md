@@ -1,8 +1,15 @@
+## v1.3.1
+
+### Improve
+
+- 代码重构
+- 添加测试(Add Some Test)
+
 ## v1.3.0
 
 ### Change
 
--  change KeepAlive duration default value from 20m to 5m
+- change KeepAlive duration default value from 20m to 5m
 
 ## v1.2.1
 
