@@ -76,9 +76,6 @@ func (tmpd TmpDocker) ScaleDockerService(ctx context.Context) error {
 	if ds.Replicas != 0 && uint64(count) == ds.Replicas {
 		return nil
 	}
-	if err != nil {
-		return err
-	}
 
 	replicas := uint64(1)
 	ds.ServiceSpec.Mode.Replicated.Replicas = &replicas
